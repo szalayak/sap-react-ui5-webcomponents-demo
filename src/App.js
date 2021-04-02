@@ -1,32 +1,34 @@
-import {
-  FlexBox,
-  FlexBoxAlignItems,
-  FlexBoxDirection,
-  FlexBoxJustifyContent,
-  Link,
-  LinkDesign,
-  ShellBar,
-  ThemeProvider
-} from '@ui5/webcomponents-react';
-import React from 'react';
-import './App.css';
+import { ThemeProvider } from "@ui5/webcomponents-react";
+import React, { useEffect, useState } from "react";
+import "./App.css";
+import EntityList from "./pages/EntityList/EntityList.component";
 
-function App() {
+export const OdataContext = React.createContext({});
+
+export default function App() {
+  const [token, setToken] = useState();
+
+  useEffect(() => {
+    const handshake = async () => {
+      const response = await fetch(
+        "/sap/opu/odata/sap/ZAPI_UK31680_TESTTABLE/",
+        {
+          method: "HEAD",
+          headers: {
+            "x-csrf-token": "Fetch",
+          },
+        }
+      );
+      setToken(response.headers.get("x-csrf-token"));
+    };
+    handshake();
+  }, []);
+
   return (
-    <ThemeProvider>
-      <ShellBar primaryTitle="UI5 Web Components for React Template" />
-      <FlexBox
-        style={{ width: '100%', height: '100vh' }}
-        direction={FlexBoxDirection.Column}
-        justifyContent={FlexBoxJustifyContent.Center}
-        alignItems={FlexBoxAlignItems.Center}
-      >
-        <Link href="https://sap.github.io/ui5-webcomponents-react/" target="_blank" design={LinkDesign.Emphasized}>
-          Getting Started with UI5 Web Component for React
-        </Link>
-      </FlexBox>
-    </ThemeProvider>
+    <OdataContext.Provider value={{ token }}>
+      <ThemeProvider>
+        <EntityList />
+      </ThemeProvider>
+    </OdataContext.Provider>
   );
 }
-
-export default App;
