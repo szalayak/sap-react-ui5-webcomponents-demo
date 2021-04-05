@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   Button,
@@ -10,29 +10,28 @@ import {
 } from "@ui5/webcomponents-react";
 import { createPortal } from "react-dom/cjs/react-dom.development";
 
-export default function CreateDialog({ onSave, loading }) {
+export default function EditDialog({ onSave, loading, entity }) {
   const dialogRef = useRef(null);
   const [field1, setField1] = useState();
   const [field2, setField2] = useState();
 
+  useEffect(() => {
+    setField1(entity.Field1);
+    setField2(entity.Field2);
+  }, [entity]);
+
   const handleOpen = () => {
     dialogRef.current.open();
   };
-  const handleClose = () => dialogRef.current.close();
+  const handleClose = () => dialogRef?.current?.close();
   const handleSave = async () => {
-    if (onSave)
-      await onSave({
-        Field1: field1 === "" ? null : field1,
-        Field2: field2 === "" ? null : field2,
-      });
-    setField1("");
-    setField2("");
+    if (onSave) await onSave({ ...entity, Field1: field1, Field2: field2 });
     handleClose();
   };
 
   return (
     <React.Fragment>
-      <Button icon="create" onClick={handleOpen}>Create</Button>
+      <Button disabled={!entity || loading} icon="edit" onClick={handleOpen} />
       {createPortal(
         <Dialog
           ref={dialogRef}
@@ -42,12 +41,14 @@ export default function CreateDialog({ onSave, loading }) {
               endContent={
                 <React.Fragment>
                   <Button onClick={handleClose}>Cancel</Button>
-                  <Button design="Positive" onClick={handleSave}>Save</Button>
+                  <Button design="Positive" onClick={handleSave}>
+                    Save
+                  </Button>
                 </React.Fragment>
               }
             />
           }
-          headerText="Create Entity"
+          headerText="Update Entity"
         >
           {loading && <Loader />}
           <Form>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext, useEffect } from "react";
 import {
   ShellBar,
   AnalyticalTable,
@@ -7,22 +7,55 @@ import {
   Page,
   Toolbar,
   ToolbarSpacer,
+  Loader,
 } from "@ui5/webcomponents-react";
-import { useLoadData } from "../../hooks/odata";
+import {
+  useActivate,
+  useCreate,
+  useDelete,
+  useEdit,
+  useRefresh,
+  useUpdate,
+} from "../../hooks/odata";
 import CreateDialog from "../../components/CreateDialog/CreateDialog.component";
+import { OdataContext } from "../../App";
+import DeleteDialog from "../../components/DeleteDialog/DeleteDialog.component";
+import EditDialog from "../../components/EditDialog/EditDialog.component";
+
 export default function EntityList() {
-  const [entities, entitiesLoading] = useLoadData();
+  const { create, createLoading } = useCreate();
+  const { activate, activateLoading } = useActivate();
+  const { deleteEntity, deleteLoading } = useDelete();
+  const { refresh, entities, entitiesLoading } = useRefresh();
+  const { edit, draftLoading } = useEdit();
+  const { update, updateLoading } = useUpdate();
+
+  const { token } = useContext(OdataContext);
+
+  useEffect(() => {
+    if (token) refresh();
+  }, [token, refresh]);
 
   const handleCreate = async entity => {
-    console.log({ entity });
+    await activate(await create(entity));
+    await refresh();
   };
 
-  const handleEdit = ({ row: { original: entity } }) => {
-    alert("edit " + entity.Id);
+  const handleActivate = async ({ row: { original: entity } }) => {
+    await activate(entity);
+    await refresh();
   };
 
-  const handleDelete = instance => {
-    alert("delete " + instance.id);
+  const handleEdit = async entity => {
+    const draft = await edit(entity);
+    await update(draft, { Field1: entity.Field1, Field2: entity.Field2 });
+    await activate(draft);
+    await refresh();
+  };
+
+  const handleDelete = async entity => {
+    await deleteEntity(entity);
+    await refresh();
   };
 
   return (
@@ -40,13 +73,13 @@ export default function EntityList() {
       }
       style={{ height: "100vh" }}
     >
+      {(activateLoading ||
+        draftLoading ||
+        deleteLoading ||
+        updateLoading ||
+        entitiesLoading) && <Loader />}
       <AnalyticalTable
         columns={[
-          {
-            Header: "Id",
-            accessor: "Id",
-            defaultCanFilter: true,
-          },
           {
             Header: "Field1",
             accessor: "Field1",
@@ -55,6 +88,16 @@ export default function EntityList() {
           {
             Header: "Field 2",
             accessor: "Field2",
+            defaultCanFilter: true,
+          },
+          {
+            Header: "Created By",
+            accessor: "CreaUname",
+            defaultCanFilter: true,
+          },
+          {
+            Header: "Last Changed By",
+            accessor: "LchgUname",
             defaultCanFilter: true,
           },
           {
@@ -71,10 +114,29 @@ export default function EntityList() {
             Cell: instance => {
               return (
                 <FlexBox>
-                  <Button icon="edit" onClick={() => handleEdit(instance)} />
                   <Button
-                    icon="delete"
-                    onClick={() => handleDelete(instance)}
+                    icon="activate"
+                    disabled={
+                      instance?.row?.original?.IsActiveEntity ||
+                      activateLoading ||
+                      entitiesLoading
+                    }
+                    onClick={() => handleActivate(instance)}
+                  />
+                  <EditDialog
+                    entity={instance?.row?.original}
+                    loading={
+                      draftLoading ||
+                      updateLoading ||
+                      activateLoading ||
+                      entitiesLoading
+                    }
+                    onSave={handleEdit}
+                  />
+                  <DeleteDialog
+                    entity={instance?.row?.original}
+                    loading={deleteLoading || entitiesLoading}
+                    onSave={handleDelete}
                   />
                 </FlexBox>
               );
@@ -101,7 +163,10 @@ export default function EntityList() {
             tooltip=""
           >
             <ToolbarSpacer />
-            <CreateDialog onSave={handleCreate} />
+            <CreateDialog
+              onSave={handleCreate}
+              loading={createLoading || activateLoading || entitiesLoading}
+            />
           </Toolbar>
         }
       />
